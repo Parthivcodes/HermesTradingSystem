@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: hermes-trading-engine
+    env: python
+    buildCommand: ""
+    startCommand: python run_engine.py --capital 100000 --interval 60
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0

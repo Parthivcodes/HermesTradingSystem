@@ -1,0 +1,26 @@
+"""
+Hermes Trading Engine
+---------------------
+Automated crypto trading engine with technical analysis,
+risk management, and paper trading support.
+"""
+
+from .config import TradingConfig, ExchangeConfig, StrategyConfig, RiskConfig
+from .data_fetcher import DataFetcher, Candle, TickerData, OrderBook
+from .strategy import StrategyEngine, Signal, StrategyResult
+from .risk_manager import RiskManager, Position, TradeValidation
+from .exchange_client import PaperTradingClient, OrderResult, Balance
+from .reporter import Reporter, PerformanceMetrics
+from .trading_bot import TradingBot, run_backtest
+
+__all__ = [
+    "TradingConfig", "ExchangeConfig", "StrategyConfig", "RiskConfig",
+    "DataFetcher", "Candle", "TickerData", "OrderBook",
+    "StrategyEngine", "Signal", "StrategyResult",
+    "RiskManager", "Position", "TradeValidation",
+    "PaperTradingClient", "OrderResult", "Balance",
+    "Reporter", "PerformanceMetrics",
+    "TradingBot", "run_backtest",
+]
+
+__version__ = "1.0.0"

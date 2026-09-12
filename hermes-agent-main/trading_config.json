@@ -1,0 +1,59 @@
+{
+  "symbols": [
+    "ETHUSDT",
+    "BTCUSDT",
+    "SOLUSDT",
+    "SPY",
+    "AAPL",
+    "TSLA",
+    "NVDA",
+    "AMZN"
+  ],
+  "timeframe": "5m",
+  "lookback_candles": 100,
+  "poll_interval_seconds": 60,
+  "paper_trading": true,
+  "initial_capital": 100000.0,
+  "exchange": {
+    "name": "alpaca",
+    "api_key": "PKOBB32V27HLE4HOQUA5FENK7M",
+    "api_secret": "2oBuVQCA4nGoDqEToGETkNppYKzPyWztXjB1b8prq3r4",
+    "base_url": "https://api.alpaca.markets",
+    "testnet": true,
+    "testnet_url": "https://paper-api.alpaca.markets"
+  },
+  "strategy": {
+    "rsi_period": 14,
+    "rsi_oversold": 30.0,
+    "rsi_overbought": 70.0,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9,
+    "bb_period": 20,
+    "bb_std_dev": 2.0,
+    "ema_fast": 9,
+    "ema_slow": 21,
+    "min_signal_score": 0.15,
+    "signal_weights": {
+      "rsi": 0.25,
+      "macd": 0.3,
+      "bollinger": 0.2,
+      "ema_cross": 0.25
+    }
+  },
+  "risk": {
+    "max_risk_per_trade": 0.02,
+    "max_portfolio_risk": 0.15,
+    "max_concurrent_positions": 8,
+    "daily_loss_limit": 0.05,
+    "stop_loss_atr_multiplier": 1.5,
+    "take_profit_atr_multiplier": 2.5,
+    "trailing_stop_pct": 0.02,
+    "max_position_size_pct": 0.2,
+    "cooldown_after_loss_seconds": 180
+  },
+  "log_dir": "trading_logs",
+  "enable_telegram_alerts": false,
+  "telegram_bot_token": "",
+  "telegram_chat_id": ""
+}

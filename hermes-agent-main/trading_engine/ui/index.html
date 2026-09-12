@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hermes Trading Engine — Live Alpaca Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Top Navigation -->
+    <header class="top-nav">
+      <div class="brand-group">
+        <div class="logo-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+            <polyline points="16 7 22 7 22 13"></polyline>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">HERMES <span>TRADING</span></span>
+          <span class="brand-sub">Autonomous AI Market Engine</span>
+        </div>
+      </div>
+
+      <div class="nav-center">
+        <div class="status-pill active" id="botStatusPill">
+          <span class="pulse-dot"></span>
+          <span id="botStatusText">BOT ACTIVE (POLLING 60s)</span>
+        </div>
+        <div class="status-pill exchange-pill">
+          <span class="exchange-badge">ALPACA</span>
+          <span id="accountNumBadge">PA3PIR0Q6O5M</span>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <span class="live-clock" id="liveClock">00:00:00 UTC</span>
+        <button class="btn-refresh" id="btnManualRefresh" title="Refresh Live Data">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          Sync
+        </button>
+      </div>
+    </header>
+
+    <!-- Metrics Row -->
+    <section class="metrics-grid">
+      <div class="metric-card glow-cyan">
+        <div class="metric-header">
+          <span class="metric-label">TOTAL PORTFOLIO EQUITY</span>
+          <span class="metric-icon">💎</span>
+        </div>
+        <div class="metric-value" id="valPortfolioEquity">$0.00</div>
+        <div class="metric-sub" id="valAccountStatus">Paper Account: Active</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-label">AVAILABLE CASH</span>
+          <span class="metric-icon">💵</span>
+        </div>
+        <div class="metric-value" id="valCash">$0.00</div>
+        <div class="metric-sub">Settled Cash in USD</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-label">BUYING POWER</span>
+          <span class="metric-icon">⚡</span>
+        </div>
+        <div class="metric-value" id="valBuyingPower">$0.00</div>
+        <div class="metric-sub">Margin / Purchasing Power</div>
+      </div>
+
+      <div class="metric-card glow-emerald">
+        <div class="metric-header">
+          <span class="metric-label">BOT SAMPLE CAPITAL</span>
+          <span class="metric-icon">🛡️</span>
+        </div>
+        <div class="metric-value" id="valAllocatedCapital">$5,000.00</div>
+        <div class="metric-sub">Risk Capped at 2% / Trade</div>
+      </div>
+    </section>
+
+    <!-- Main Grid: Chart + Signals + Execution Stream -->
+    <div class="main-grid">
+      <!-- Left: Interactive Chart & Technical Indicators -->
+      <section class="chart-section panel-card">
+        <div class="panel-header">
+          <div class="symbol-info">
+            <span class="symbol-title" id="currentSymbolDisplay">ETH / USD</span>
+            <span class="live-price" id="currentPriceDisplay">$0.00</span>
+            <span class="price-change-pill" id="priceChangePill">0.00%</span>
+          </div>
+          <div class="chart-controls">
+            <button class="timeframe-btn active" data-tf="5m">5M</button>
+            <button class="timeframe-btn" data-tf="15m">15M</button>
+            <button class="timeframe-btn" data-tf="1h">1H</button>
+          </div>
+        </div>
+
+        <div class="chart-wrapper">
+          <canvas id="priceCanvas"></canvas>
+          <div class="chart-tooltip" id="chartTooltip"></div>
+        </div>
+
+        <!-- Indicator Meters Bar -->
+        <div class="indicators-row">
+          <!-- Signal Meter -->
+          <div class="indicator-box">
+            <span class="ind-title">ALGO SIGNAL</span>
+            <div class="signal-badge neutral" id="signalBadge">NEUTRAL</div>
+            <span class="ind-sub" id="signalScoreText">Score: +0.00</span>
+          </div>
+
+          <!-- RSI Meter -->
+          <div class="indicator-box">
+            <div class="ind-head-row">
+              <span class="ind-title">RSI (14)</span>
+              <span class="ind-num" id="rsiNum">50.0</span>
+            </div>
+            <div class="meter-bar-track">
+              <div class="meter-bar-fill" id="rsiBar" style="width: 50%;"></div>
+            </div>
+            <div class="meter-labels">
+              <span>30 Oversold</span>
+              <span>70 Overbought</span>
+            </div>
+          </div>
+
+          <!-- MACD -->
+          <div class="indicator-box">
+            <div class="ind-head-row">
+              <span class="ind-title">MACD (12, 26, 9)</span>
+              <span class="ind-num" id="macdNum">+0.00</span>
+            </div>
+            <div class="macd-meter-container">
+              <div class="macd-zero-line"></div>
+              <div class="macd-bar" id="macdBar"></div>
+            </div>
+            <div class="meter-labels">
+              <span>Bearish</span>
+              <span>Bullish</span>
+            </div>
+          </div>
+
+          <!-- ATR Volatility -->
+          <div class="indicator-box">
+            <span class="ind-title">ATR VOLATILITY</span>
+            <div class="atr-value" id="atrVal">±$0.00</div>
+            <span class="ind-sub">Dynamic SL/TP Multiplier</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Action Center & Live Order Execution Stream -->
+      <aside class="actions-section panel-card">
+        <div class="panel-header">
+          <span class="panel-title">EXECUTION CENTER</span>
+          <span class="stream-badge">LIVE STREAM</span>
+        </div>
+
+        <!-- Quick Execution Buttons -->
+        <div class="action-box">
+          <div class="action-box-title">Order Execution Control</div>
+          <p class="action-desc">Execute an order on your Alpaca paper account to watch it fill live:</p>
+          <div class="amount-selector-row">
+            <span class="amount-label">Select Order Size:</span>
+            <div class="amount-chips">
+              <button class="chip-btn" data-amt="100">$100</button>
+              <button class="chip-btn" data-amt="500">$500</button>
+              <button class="chip-btn active" data-amt="1000">$1,000</button>
+              <button class="chip-btn" data-amt="5000">$5,000</button>
+              <button class="chip-btn" data-amt="25000">$25,000</button>
+              <button class="chip-btn" data-amt="50000">$50,000</button>
+            </div>
+          </div>
+          <div class="action-btn-group">
+            <button class="btn-trade btn-buy" id="btnTestBuy">
+              <span id="btnBuyText">⚡ Buy $1,000 ETH</span>
+            </button>
+            <button class="btn-trade btn-sell" id="btnTestSell">
+              <span>✕ Close / Sell ETH</span>
+            </button>
+          </div>
+          <div class="action-feedback" id="actionFeedback"></div>
+        </div>
+
+        <!-- Live Orders Feed -->
+        <div class="orders-feed-header">
+          <span class="feed-title">ORDER EXECUTION STREAM</span>
+          <span class="feed-count" id="ordersCount">0 Orders</span>
+        </div>
+        <div class="orders-stream" id="ordersStream">
+          <div class="empty-state">Loading order stream...</div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom: Open Positions Table -->
+    <section class="positions-section panel-card">
+      <div class="panel-header">
+        <div class="positions-title-group">
+          <span class="panel-title">ACTIVE POSITIONS</span>
+          <span class="positions-count-badge" id="posCountBadge">0 Active</span>
+        </div>
+        <span class="positions-sub">Real-time sync with Alpaca Paper Trading Account</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table" id="positionsTable">
+          <thead>
+            <tr>
+              <th>ASSET</th>
+              <th>SIDE</th>
+              <th>QUANTITY</th>
+              <th>ENTRY PRICE</th>
+              <th>MARKET PRICE</th>
+              <th>MARKET VALUE</th>
+              <th>UNREALIZED P&L</th>
+              <th>RETURN %</th>
+            </tr>
+          </thead>
+          <tbody id="positionsTableBody">
+            <tr>
+              <td colspan="8" class="loading-td">Syncing account positions...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="dashboard-footer">
+      <span>Hermes Autonomous Trading Bot • Running on Alpaca Markets API v2 & Binance Data Engine</span>
+      <span>Paper Trading Mode — 100% Risk Free Simulated Environment</span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "hermes-trading-engine",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "python run_engine.py --capital 100000 --interval 60 --port 5000",
+    "start": "python run_engine.py --capital 100000 --interval 60 --port 5000"
+  }
+}
