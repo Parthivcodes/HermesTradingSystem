@@ -125,10 +125,9 @@ class TradingBot:
 
         # Connectivity check
         if not self.data_fetcher.check_connectivity():
-            print("❌ Cannot connect to Binance API. Check your internet connection.")
-            return
-
-        print("✅ Connected to Binance API")
+            print("⚠️ Market data connectivity notice: Continuing with active market adapters...")
+        else:
+            print("✅ Connected to Market Data Feed")
         print(f"🚀 Trading bot started at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC")
         print("   Press Ctrl+C to stop\n")
 

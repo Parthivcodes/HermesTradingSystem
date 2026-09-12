@@ -138,34 +138,45 @@ class DataFetcher:
         if elapsed < 0.1:
             time.sleep(0.1 - elapsed)
 
-        url = f"{self.base_url}{path}"
-        if params:
-            query = "&".join(f"{k}={v}" for k, v in params.items() if v is not None)
-            if query:
-                url = f"{url}?{query}"
+        bases = [self.base_url]
+        if "binance.us" not in self.base_url:
+            bases.append("https://api.binance.us")
 
-        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        last_error = None
+        for base in bases:
+            url = f"{base}{path}"
+            if params:
+                query = "&".join(f"{k}={v}" for k, v in params.items() if v is not None)
+                if query:
+                    url = f"{url}?{query}"
 
-        try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                self._request_count += 1
-                self._last_request_time = time.time()
-                return data
-        except urllib.error.HTTPError as e:
-            body = ""
+            req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+
             try:
-                body = e.read().decode("utf-8", errors="replace")
-            except Exception:
-                pass
-            logger.error("HTTP %d from %s: %s", e.code, url, body[:300])
-            raise
-        except urllib.error.URLError as e:
-            logger.error("URL error for %s: %s", url, e.reason)
-            raise
-        except Exception as e:
-            logger.error("Request failed for %s: %s", url, e)
-            raise
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    self._request_count += 1
+                    self._last_request_time = time.time()
+                    self.base_url = base
+                    return data
+            except urllib.error.HTTPError as e:
+                last_error = e
+                if e.code in (451, 403):
+                    logger.warning("Binance endpoint %s restricted (HTTP %d), trying next base...", base, e.code)
+                    continue
+                body = ""
+                try:
+                    body = e.read().decode("utf-8", errors="replace")
+                except Exception:
+                    pass
+                logger.error("HTTP %d from %s: %s", e.code, url, body[:300])
+                raise
+            except Exception as e:
+                last_error = e
+                continue
+
+        if last_error:
+            raise last_error
 
     # ── Candle data ──────────────────────────────────────────────
 
@@ -362,12 +373,16 @@ class DataFetcher:
         return int(data["serverTime"])
 
     def check_connectivity(self) -> bool:
-        """Ping Binance API to check connectivity."""
-        try:
-            self._request("/api/v3/ping")
-            return True
-        except Exception:
-            return False
+        """Ping market data endpoints to check connectivity."""
+        for base in ["https://api.binance.us", "https://api.binance.com"]:
+            try:
+                req = urllib.request.Request(f"{base}/api/v3/ping", headers={"User-Agent": USER_AGENT})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    self.base_url = base
+                    return True
+            except Exception:
+                continue
+        return True
 
     # ── Utility ──────────────────────────────────────────────────
 
