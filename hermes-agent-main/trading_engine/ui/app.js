@@ -212,6 +212,7 @@ function renderWhaleSignals(signals) {
         currentSymbol = sym;
         const disp = document.getElementById("currentSymbolDisplay");
         if (disp) disp.textContent = sym;
+        updateTradeButtons();
         fetchCandles();
       }
     });
@@ -234,6 +235,7 @@ function renderUniverseChips(symbols) {
         currentSymbol = sym;
         const disp = document.getElementById("currentSymbolDisplay");
         if (disp) disp.textContent = sym;
+        updateTradeButtons();
         fetchCandles();
         renderUniverseChips(symbols);
       }
@@ -451,14 +453,23 @@ function handleChartHover(e) {
 let selectedOrderAmount = 1000;
 const elBtnBuyText = document.getElementById("btnBuyText");
 
+function updateTradeButtons() {
+  const displaySym = currentSymbol.replace("USDT", "").replace("/USD", "");
+  if (elBtnBuyText) {
+    elBtnBuyText.textContent = `⚡ Buy $${selectedOrderAmount.toLocaleString()} ${displaySym}`;
+  }
+  const sellSpan = elBtnTestSell ? elBtnTestSell.querySelector("span") : null;
+  if (sellSpan) {
+    sellSpan.textContent = `✕ Close / Sell ${displaySym}`;
+  }
+}
+
 document.querySelectorAll(".chip-btn").forEach(btn => {
   btn.addEventListener("click", e => {
     document.querySelectorAll(".chip-btn").forEach(b => b.classList.remove("active"));
     e.target.classList.add("active");
     selectedOrderAmount = Number(e.target.dataset.amt);
-    if (elBtnBuyText) {
-      elBtnBuyText.textContent = `⚡ Buy $${selectedOrderAmount.toLocaleString()} ETH`;
-    }
+    updateTradeButtons();
   });
 });
 
