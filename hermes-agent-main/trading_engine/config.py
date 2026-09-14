@@ -113,6 +113,16 @@ class WhaleRadarConfig:
 
 
 @dataclass
+class AdaptiveConfig:
+    """Self-improving learner and market regime adaptation settings."""
+    enabled: bool = True
+    learning_rate: float = 0.05
+    history_window: int = 50
+    min_trades_to_adapt: int = 3
+    chop_filter_strict: bool = True
+
+
+@dataclass
 class TradingConfig:
     """Main trading configuration."""
     # Assets
@@ -132,6 +142,7 @@ class TradingConfig:
     risk: RiskConfig = field(default_factory=RiskConfig)
     scalper: ScalperConfig = field(default_factory=ScalperConfig)
     whale_radar: WhaleRadarConfig = field(default_factory=WhaleRadarConfig)
+    adaptive: AdaptiveConfig = field(default_factory=AdaptiveConfig)
 
     # Logging & Alerts
     log_dir: str = ""
@@ -161,12 +172,14 @@ class TradingConfig:
         risk = RiskConfig(**data.pop("risk", {}))
         scalper = ScalperConfig(**data.pop("scalper", {}))
         whale_radar = WhaleRadarConfig(**data.pop("whale_radar", {}))
+        adaptive = AdaptiveConfig(**data.pop("adaptive", {}))
         return cls(
             exchange=exchange,
             strategy=strategy,
             risk=risk,
             scalper=scalper,
             whale_radar=whale_radar,
+            adaptive=adaptive,
             **data
         )
 

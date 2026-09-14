@@ -143,9 +143,11 @@ class TradingDashboardHandler(BaseHTTPRequestHandler):
                 "last_cycle_utc": bot_info.get("last_cycle_utc"),
                 "cycle_count": bot_info.get("cycle_count", 0),
                 "signals": bot_info.get("signals", {}),
+                "regimes": bot_info.get("regimes", {}),
             },
             "scalper": bot_info.get("scalper_summary", {}),
             "whale_signals": bot_info.get("whale_signals", []),
+            "adaptive": bot_info.get("adaptive_profile", {}),
             "risk": {
                 "max_risk_per_trade": self.config.risk.max_risk_per_trade,
                 "stop_loss_mult": self.config.risk.stop_loss_atr_multiplier,

@@ -34,6 +34,8 @@ from .reporter import Reporter
 from .whale_radar import WhaleRadar
 from .dynamic_screener import DynamicScreener
 from .scalper_engine import ScalperEngine
+from .regime_classifier import RegimeClassifier, RegimeType, RegimeAnalysis
+from .adaptive_learner import AdaptiveLearner
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +103,13 @@ class TradingBot:
             breakeven_lock_dollars=self.config.scalper.breakeven_lock_dollars,
             fast_poll_interval_seconds=self.config.scalper.fast_poll_interval_seconds,
             log_dir=self.config.log_dir,
+        )
+        self.regime_classifier = RegimeClassifier()
+        self.adaptive_learner = AdaptiveLearner(
+            log_dir=self.config.log_dir,
+            learning_rate=getattr(self.config.adaptive, "learning_rate", 0.05),
+            min_trades_to_adapt=getattr(self.config.adaptive, "min_trades_to_adapt", 3),
+            history_window=getattr(self.config.adaptive, "history_window", 50),
         )
         if self.config.exchange.name.lower() == "alpaca" and self.config.exchange.api_key:
             self.exchange = AlpacaClient(
@@ -237,7 +246,17 @@ class TradingBot:
                     if trade:
                         results["exits"].append(trade)
 
-                # ── Step 3: Analyze signals ──────────────────────
+                # ── Step 2b: Real-Time Market Regime Classification ──
+                regime_analysis = self.regime_classifier.classify(
+                    closes=data["closes"],
+                    highs=data["highs"],
+                    lows=data["lows"],
+                )
+
+                # ── Step 2c: Dynamic Strategy Weight Tilting ──────────
+                dynamic_weights = self.adaptive_learner.get_weights_for_regime(regime_analysis.regime)
+
+                # ── Step 3: Analyze signals with regime-tilted weights ─
                 analysis = self.strategy.analyze(
                     symbol=symbol,
                     closes=data["closes"],
@@ -245,6 +264,7 @@ class TradingBot:
                     lows=data["lows"],
                     volumes=data["volumes"],
                     timestamp=candles[-1].timestamp,
+                    dynamic_weights=dynamic_weights,
                 )
 
                 results["signals"][symbol] = {
@@ -253,11 +273,25 @@ class TradingBot:
                     "price": current_price,
                     "atr": analysis.atr,
                     "direction": analysis.direction,
+                    "regime": regime_analysis.regime.value,
+                    "recommended_mode": regime_analysis.recommended_mode,
                 }
 
-                # ── Step 4: Execute if actionable ────────────────
+                # ── Sideways / Chop Protection Filter ─────────────────
+                # Rule: "Better to not trade when the market is sideways than make losses; wait for the right time with strict stop-loss."
+                is_chop = (regime_analysis.regime == RegimeType.SIDEWAYS_CHOP)
+                chop_filter_strict = getattr(self.config.adaptive, "chop_filter_strict", True)
+                if is_chop and chop_filter_strict and abs(analysis.score) < 0.40:
+                    logger.info("Chop filter: Skipping %s in sideways chop (score %.2f < 0.40 conviction threshold)", symbol, analysis.score)
+                    ts_str = datetime.now(timezone.utc).strftime("%H:%M:%S")
+                    print(
+                        f"  [{ts_str}] 🛡️  {symbol}: Sideways chop detected — standing aside to protect capital (score={analysis.score:+.2f} < 0.40)"
+                    )
+                    continue
+
+                # ── Step 4: Execute if actionable ────────────────────
                 if analysis.is_actionable:
-                    trade = self._try_enter(symbol, analysis)
+                    trade = self._try_enter(symbol, analysis, regime_analysis)
                     if trade:
                         results["trades"].append(trade)
 
@@ -274,7 +308,7 @@ class TradingBot:
                 print(
                     f"  [{ts_str}] {signal_emoji} {symbol}: "
                     f"${current_price:,.2f} | {analysis.signal.value} ({analysis.score:+.2f}) | "
-                    f"ATR: {analysis.atr:.2f}"
+                    f"Regime: {regime_analysis.regime.value} | ATR: {analysis.atr:.2f}"
                 )
 
             except Exception as e:
@@ -289,6 +323,10 @@ class TradingBot:
 
         # Write live bot status file
         try:
+            regimes_map = {
+                sym: results["signals"][sym].get("regime", "UNKNOWN")
+                for sym in results["signals"]
+            }
             status_data = {
                 "timestamp": int(time.time()),
                 "last_cycle_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
@@ -298,8 +336,10 @@ class TradingBot:
                 "max_allocated_capital": self.config.max_allocated_capital,
                 "symbols": eval_symbols,
                 "signals": results["signals"],
+                "regimes": regimes_map,
                 "open_positions": [p.symbol for p in self.risk_manager.positions.values()],
                 "scalper_summary": self.scalper.get_summary(),
+                "adaptive_profile": self.adaptive_learner.get_summary() if hasattr(self, "adaptive_learner") else {},
                 "whale_signals": [
                     {"symbol": s.symbol, "score": s.conviction_score, "source": s.primary_source, "catalysts": s.catalysts}
                     for s in self.whale_radar.get_top_signals(limit=8)
@@ -315,7 +355,7 @@ class TradingBot:
 
         return results
 
-    def _try_enter(self, symbol: str, analysis) -> Optional[Dict]:
+    def _try_enter(self, symbol: str, analysis, regime_analysis: Optional[RegimeAnalysis] = None) -> Optional[Dict]:
         """Try to enter a new position based on strategy signal."""
         direction = analysis.direction  # "LONG" or "SHORT"
         if direction == "FLAT":
@@ -339,6 +379,12 @@ class TradingBot:
         if not validation.approved:
             logger.info("Trade rejected for %s: %s", symbol, validation.rejection_reason)
             print(f"  ⏭️  {symbol}: Trade rejected — {validation.rejection_reason}")
+            return None
+
+        # Scale position size dynamically based on market regime volatility
+        pos_scale = regime_analysis.position_scale if regime_analysis else 1.0
+        adjusted_quantity = validation.position_size * pos_scale
+        if adjusted_quantity <= 0:
             return None
 
         # Alpaca spot crypto is Long-only; US Equities can be shorted
@@ -367,13 +413,13 @@ class TradingBot:
         if direction == "LONG":
             order = self.exchange.market_buy(
                 symbol=symbol,
-                quantity=validation.position_size,
+                quantity=adjusted_quantity,
                 current_price=current_price,
             )
         else:
             order = self.exchange.short_sell(
                 symbol=symbol,
-                quantity=validation.position_size,
+                quantity=adjusted_quantity,
                 current_price=current_price,
             )
 
@@ -381,7 +427,9 @@ class TradingBot:
             logger.warning("Order not filled for %s: %s", symbol, order.message)
             return None
 
-        # Register position with risk manager
+        # Register position with risk manager along with indicator attribution & market regime
+        inds_map = {ind.name: ind.score for ind in getattr(analysis, "indicators", [])}
+        regime_name = regime_analysis.regime.value if regime_analysis else "UNKNOWN"
         self.risk_manager.open_position(
             symbol=symbol,
             side=direction,
@@ -390,13 +438,16 @@ class TradingBot:
             stop_loss=validation.stop_loss,
             take_profit=validation.take_profit,
             order_id=order.order_id,
+            indicators_at_entry=inds_map,
+            regime_at_entry=regime_name,
         )
 
         trade_emoji = "📈" if direction == "LONG" else "📉"
         print(
             f"\n  {trade_emoji} TRADE OPENED: {direction} {symbol}\n"
-            f"     Entry: ${order.price:,.2f} | Qty: {order.quantity:.6f}\n"
+            f"     Entry: ${order.price:,.2f} | Qty: {order.quantity:.6f} (Scale: {pos_scale:.2f}x)\n"
             f"     SL: ${validation.stop_loss:,.2f} | TP: ${validation.take_profit:,.2f}\n"
+            f"     Regime: {regime_name}\n"
             f"     Risk: ${validation.risk_amount:,.2f} ({validation.risk_amount / portfolio_value * 100:.1f}% of portfolio)\n"
         )
 
@@ -456,6 +507,11 @@ class TradingBot:
 
         if trade_record:
             self.reporter.record_trade(trade_record)
+
+            # ── Continuous Self-Improvement: Feed Outcome to Adaptive Learner ──
+            if hasattr(self, "adaptive_learner") and self.adaptive_learner:
+                inds = list(trade_record.get("indicators_at_entry", {}).keys()) or None
+                self.adaptive_learner.learn_from_trade(trade_record, contributing_indicators=inds)
 
             pnl = trade_record["pnl"]
             pnl_emoji = "✅" if pnl >= 0 else "❌"

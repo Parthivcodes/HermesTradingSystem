@@ -272,6 +272,7 @@ class StrategyEngine:
         lows: List[float],
         volumes: List[float],
         timestamp: int = 0,
+        dynamic_weights: Optional[Dict[str, float]] = None,
     ) -> StrategyResult:
         """Run all indicators and produce a combined signal."""
 
@@ -312,10 +313,11 @@ class StrategyEngine:
         vol_ratio = compute_volume_ratio(volumes)
 
         # ── Combined score ───────────────────────────────────────
+        active_weights = dynamic_weights if dynamic_weights else self.weights
         weighted_score = 0.0
         total_weight = 0.0
         for ind in indicators:
-            w = self.weights.get(ind.name, 0.0)
+            w = active_weights.get(ind.name, 0.0)
             weighted_score += ind.score * w
             total_weight += w
 

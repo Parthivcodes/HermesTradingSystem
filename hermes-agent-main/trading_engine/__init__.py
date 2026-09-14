@@ -15,6 +15,8 @@ from .trading_bot import TradingBot, run_backtest
 from .whale_radar import WhaleRadar, WhaleSignal
 from .dynamic_screener import DynamicScreener, ScreenedAsset
 from .scalper_engine import ScalperEngine, ScalpEvaluation, ScalpRecord
+from .regime_classifier import RegimeClassifier, RegimeType, RegimeAnalysis
+from .adaptive_learner import AdaptiveLearner
 
 __all__ = [
     "TradingConfig", "ExchangeConfig", "StrategyConfig", "RiskConfig",
@@ -27,6 +29,8 @@ __all__ = [
     "WhaleRadar", "WhaleSignal",
     "DynamicScreener", "ScreenedAsset",
     "ScalperEngine", "ScalpEvaluation", "ScalpRecord",
+    "RegimeClassifier", "RegimeType", "RegimeAnalysis",
+    "AdaptiveLearner",
 ]
 
 __version__ = "1.0.0"

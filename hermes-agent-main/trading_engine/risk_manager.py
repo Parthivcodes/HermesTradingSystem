@@ -29,6 +29,9 @@ class Position:
     trailing_stop: float = 0.0
     highest_price: float = 0.0  # For trailing stop (long)
     lowest_price: float = 0.0   # For trailing stop (short)
+    break_even_triggered: bool = False
+    indicators_at_entry: Dict[str, float] = field(default_factory=dict)
+    regime_at_entry: str = "UNKNOWN"
 
     @property
     def notional_value(self) -> float:
@@ -54,8 +57,6 @@ class Position:
         if self.notional_value == 0:
             return 0.0
         return (self.unrealized_pnl(current_price) / self.notional_value) * 100.0
-
-    break_even_triggered: bool = False
 
     def should_stop_loss(self, current_price: float) -> bool:
         """Check if stop-loss should trigger (with Break-Even & Trailing Stop protection)."""
@@ -312,6 +313,8 @@ class RiskManager:
         stop_loss: float,
         take_profit: float,
         order_id: str = "",
+        indicators_at_entry: Optional[Dict[str, float]] = None,
+        regime_at_entry: str = "UNKNOWN",
     ) -> Position:
         """Register a new open position."""
         pos = Position(
@@ -326,9 +329,11 @@ class RiskManager:
             trailing_stop=self.trailing_stop_pct,
             highest_price=entry_price if side == "LONG" else 0.0,
             lowest_price=entry_price if side == "SHORT" else 0.0,
+            indicators_at_entry=indicators_at_entry or {},
+            regime_at_entry=regime_at_entry,
         )
         self.positions[symbol] = pos
-        logger.info("Opened %s %s: qty=%.6f @ %.2f", side, symbol, quantity, entry_price)
+        logger.info("Opened %s %s: qty=%.6f @ %.2f (Regime: %s)", side, symbol, quantity, entry_price, regime_at_entry)
         return pos
 
     def close_position(self, symbol: str, exit_price: float, reason: str = "") -> Optional[Dict]:
@@ -371,6 +376,8 @@ class RiskManager:
             "entry_time": pos.entry_time,
             "exit_time": int(time.time() * 1000),
             "hold_time_seconds": hold_time_s,
+            "indicators_at_entry": getattr(pos, "indicators_at_entry", {}),
+            "regime_at_entry": getattr(pos, "regime_at_entry", "UNKNOWN"),
         }
         self._closed_trades.append(trade_record)
 

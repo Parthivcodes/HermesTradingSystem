@@ -161,9 +161,10 @@ function renderStatus(data) {
     elMacdBar.style.background = "#f43f5e";
   }
 
-  // Scalper Metrics & Whale Signals
+  // Scalper Metrics, Whale Signals & Adaptive Learning
   renderScalper(data.scalper || {});
   renderWhaleSignals(data.whale_signals || []);
+  renderAdaptive(data.adaptive || {}, (data.bot && data.bot.regimes) || {}, currentSymbol);
   renderUniverseChips(bot.symbols || []);
 
   // Positions Table
@@ -217,6 +218,71 @@ function renderWhaleSignals(signals) {
       }
     });
   });
+}
+
+function renderAdaptive(adaptive, regimes, activeSym) {
+  if (!adaptive) return;
+
+  // Market Regime Badge & Desc
+  const badgeRegime = document.getElementById("badgeMarketRegime");
+  const regimeDesc = document.getElementById("adaptiveRegimeDesc");
+  const normSym = (activeSym || "").replace("USDT", "USD");
+  const curRegime = (regimes && (regimes[activeSym] || regimes[normSym])) || "SIDEWAYS_CHOP";
+
+  if (badgeRegime) {
+    badgeRegime.textContent = curRegime.replace("_", " ");
+    if (curRegime.includes("BULL")) {
+      badgeRegime.style.background = "rgba(16, 185, 129, 0.15)";
+      badgeRegime.style.color = "var(--accent-emerald)";
+      if (regimeDesc) regimeDesc.textContent = "Bull Trend: Prioritizing EMA Trend & MACD momentum (+30% weight).";
+    } else if (curRegime.includes("BEAR")) {
+      badgeRegime.style.background = "rgba(244, 63, 94, 0.15)";
+      badgeRegime.style.color = "#f43f5e";
+      if (regimeDesc) regimeDesc.textContent = "Bear Trend: Trend-breakdown active with strict trailing stops.";
+    } else if (curRegime.includes("HIGH_VOLATILITY")) {
+      badgeRegime.style.background = "rgba(245, 158, 11, 0.15)";
+      badgeRegime.style.color = "#f59e0b";
+      if (regimeDesc) regimeDesc.textContent = "High Volatility Shock: Position sizing automatically scaled down to 50%.";
+    } else {
+      badgeRegime.style.background = "rgba(139, 92, 246, 0.15)";
+      badgeRegime.style.color = "#a78bfa";
+      if (regimeDesc) regimeDesc.textContent = "Sideways Chop Defense: Blocking weak entries (<0.40 score) to prevent losses.";
+    }
+  }
+
+  // Learned weights
+  const weights = adaptive.current_base_weights || { rsi: 0.25, macd: 0.30, bollinger: 0.20, ema_cross: 0.25 };
+
+  const wRsi = ((weights.rsi || 0.25) * 100).toFixed(1);
+  const wMacd = ((weights.macd || 0.30) * 100).toFixed(1);
+  const wBb = ((weights.bollinger || 0.20) * 100).toFixed(1);
+  const wEma = ((weights.ema_cross || 0.25) * 100).toFixed(1);
+
+  const elWRsi = document.getElementById("weightRsi");
+  const elBarRsi = document.getElementById("barRsi");
+  if (elWRsi) elWRsi.textContent = `${wRsi}%`;
+  if (elBarRsi) elBarRsi.style.width = `${wRsi}%`;
+
+  const elWMacd = document.getElementById("weightMacd");
+  const elBarMacd = document.getElementById("barMacd");
+  if (elWMacd) elWMacd.textContent = `${wMacd}%`;
+  if (elBarMacd) elBarMacd.style.width = `${wMacd}%`;
+
+  const elWBb = document.getElementById("weightBb");
+  const elBarBb = document.getElementById("barBb");
+  if (elWBb) elWBb.textContent = `${wBb}%`;
+  if (elBarBb) elBarBb.style.width = `${wBb}%`;
+
+  const elWEma = document.getElementById("weightEma");
+  const elBarEma = document.getElementById("barEma");
+  if (elWEma) elWEma.textContent = `${wEma}%`;
+  if (elBarEma) elBarEma.style.width = `${wEma}%`;
+
+  // Iterations and Attributions
+  const elIter = document.getElementById("adaptiveIterations");
+  const elTrades = document.getElementById("adaptiveTradesCount");
+  if (elIter) elIter.textContent = adaptive.learning_iterations || 0;
+  if (elTrades) elTrades.textContent = adaptive.total_trades_analyzed || 0;
 }
 
 function renderUniverseChips(symbols) {
