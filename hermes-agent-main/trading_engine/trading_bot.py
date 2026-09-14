@@ -31,6 +31,9 @@ from .strategy import StrategyEngine, Signal
 from .risk_manager import RiskManager
 from .exchange_client import PaperTradingClient, AlpacaClient
 from .reporter import Reporter
+from .whale_radar import WhaleRadar
+from .dynamic_screener import DynamicScreener
+from .scalper_engine import ScalperEngine
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +83,24 @@ class TradingBot:
             trailing_stop_pct=self.config.risk.trailing_stop_pct,
             max_position_size_pct=self.config.risk.max_position_size_pct,
             cooldown_after_loss=self.config.risk.cooldown_after_loss_seconds,
+            max_allocated_capital=self.config.max_allocated_capital,
+        )
+        self.whale_radar = WhaleRadar(
+            log_dir=self.config.log_dir,
+            min_transaction_value=self.config.whale_radar.min_transaction_value,
+            cache_duration_hours=self.config.whale_radar.cache_duration_hours,
+        )
+        self.dynamic_screener = DynamicScreener(
+            data_fetcher=self.data_fetcher,
+            whale_radar=self.whale_radar,
+            max_symbols_per_cycle=self.config.whale_radar.max_screened_symbols,
+        )
+        self.scalper = ScalperEngine(
+            target_profit_dollars=self.config.scalper.target_profit_dollars,
+            stop_loss_dollars=self.config.scalper.stop_loss_dollars,
+            breakeven_lock_dollars=self.config.scalper.breakeven_lock_dollars,
+            fast_poll_interval_seconds=self.config.scalper.fast_poll_interval_seconds,
+            log_dir=self.config.log_dir,
         )
         if self.config.exchange.name.lower() == "alpaca" and self.config.exchange.api_key:
             self.exchange = AlpacaClient(
@@ -139,9 +160,16 @@ class TradingBot:
                 if self._cycle_count % 12 == 0:  # Every ~1 hour at 5min intervals
                     self._periodic_report()
 
-                # Wait for next cycle
-                if self.running:
-                    time.sleep(self.config.poll_interval_seconds)
+                # Fast Micro-Scalper Sub-Loop (polls every 3-5 seconds for instant profit exits)
+                scalp_poll = self.scalper.fast_poll_interval_seconds if self.config.scalper.enabled else self.config.poll_interval_seconds
+                elapsed = 0
+                while self.running and elapsed < self.config.poll_interval_seconds:
+                    sleep_chunk = min(scalp_poll, self.config.poll_interval_seconds - elapsed)
+                    time.sleep(sleep_chunk)
+                    elapsed += sleep_chunk
+                    if self.running and self.config.scalper.enabled:
+                        fast_results: Dict[str, Any] = {"trades": [], "exits": []}
+                        self._sync_and_manage_positions(fast_results)
 
             except KeyboardInterrupt:
                 break
@@ -172,7 +200,21 @@ class TradingBot:
         # ── Step 0: Sync live positions & manage proactive exits/profit booking ──
         self._sync_and_manage_positions(results)
 
-        for symbol in self.config.symbols:
+        # ── Step 0b: Dynamic Multi-Asset Universe Screening ──
+        is_market_open = True
+        if isinstance(self.exchange, AlpacaClient) and hasattr(self.exchange, "is_market_open"):
+            is_market_open = self.exchange.is_market_open()
+
+        if self.config.whale_radar.dynamic_universe_enabled:
+            candidates = self.dynamic_screener.screen_universe(
+                base_symbols=self.config.symbols,
+                is_us_market_open=is_market_open,
+            )
+            eval_symbols = [c.symbol for c in candidates] if candidates else self.config.symbols
+        else:
+            eval_symbols = self.config.symbols
+
+        for symbol in eval_symbols:
             try:
                 # ── Step 1: Fetch data ───────────────────────────
                 candles = self.data_fetcher.fetch_candles(
@@ -253,9 +295,15 @@ class TradingBot:
                 "cycle_count": self._cycle_count,
                 "exchange": self.config.exchange.name,
                 "portfolio_value": portfolio_value,
-                "symbols": self.config.symbols,
+                "max_allocated_capital": self.config.max_allocated_capital,
+                "symbols": eval_symbols,
                 "signals": results["signals"],
                 "open_positions": [p.symbol for p in self.risk_manager.positions.values()],
+                "scalper_summary": self.scalper.get_summary(),
+                "whale_signals": [
+                    {"symbol": s.symbol, "score": s.conviction_score, "source": s.primary_source, "catalysts": s.catalysts}
+                    for s in self.whale_radar.get_top_signals(limit=8)
+                ],
             }
             status_file = Path(self.config.log_dir) / "bot_status.json"
             status_file.write_text(json.dumps(status_data, indent=2), encoding="utf-8")
@@ -421,8 +469,39 @@ class TradingBot:
         return trade_record
 
     def _sync_and_manage_positions(self, results: Dict[str, Any]):
-        """Synchronize live positions from exchange and proactively manage exits/profit booking."""
+        """Synchronize live positions from exchange and proactively manage micro-profit scalping exits."""
         if not isinstance(self.exchange, AlpacaClient):
+            # For paper simulation, check positions tracked in risk_manager
+            for bot_sym, pos in list(self.risk_manager.positions.items()):
+                try:
+                    curr_price = self.data_fetcher.fetch_price(bot_sym)
+                    if curr_price <= 0:
+                        continue
+                    pos.update_trailing(curr_price)
+                    scalp_eval = self.scalper.evaluate_position(
+                        symbol=bot_sym,
+                        side=pos.side,
+                        entry_price=pos.entry_price,
+                        current_price=curr_price,
+                        quantity=pos.quantity,
+                    )
+                    if scalp_eval.should_exit:
+                        exit_trade = self._execute_exit(bot_sym, curr_price, scalp_eval.reason)
+                        if exit_trade:
+                            results.setdefault("exits", []).append(exit_trade)
+                            hold_time = (time.time() * 1000 - pos.entry_time) / 1000
+                            self.scalper.record_scalp(
+                                symbol=bot_sym,
+                                side=pos.side,
+                                entry_price=pos.entry_price,
+                                exit_price=curr_price,
+                                quantity=pos.quantity,
+                                pnl=exit_trade["pnl"],
+                                hold_time_seconds=hold_time,
+                                reason=scalp_eval.reason,
+                            )
+                except Exception as e:
+                    logger.debug("Error in simulated position scalper check for %s: %s", bot_sym, e)
             return
 
         try:
@@ -464,23 +543,30 @@ class TradingBot:
                 pos = self.risk_manager.positions[bot_sym]
                 pos.update_trailing(curr_price)
 
-                # ── Proactive Profit Booking Check ──
-                # If position is in profit (>= +0.10% or profit >= $10.00):
-                if pnl_pct >= 0.10 or pnl >= 10.0:
-                    logger.info("Profit target reached for %s: PnL=$%.2f (+%.2f%%) — BOOKING PROFIT!",
-                                bot_sym, pnl, pnl_pct)
-                    print(f"\n  🎯 PROACTIVE PROFIT BOOKING: {side} {bot_sym} P&L: +${pnl:.2f} (+{pnl_pct:.2f}%) — Executing Exit...")
-                    exit_trade = self._execute_exit(bot_sym, curr_price, f"Profit Target (+{pnl_pct:.2f}%)")
-                    if exit_trade:
-                        results["exits"].append(exit_trade)
+                # ── Instant Micro-Scalper Profit & Loss Evaluation ──
+                scalp_eval = self.scalper.evaluate_position(
+                    symbol=bot_sym,
+                    side=side,
+                    entry_price=entry_price,
+                    current_price=curr_price,
+                    quantity=abs(qty),
+                )
 
-                # ── Stop Loss Protection Check ──
-                elif pnl_pct <= -1.5:
-                    logger.warning("Stop loss triggered for %s: PnL=$%.2f (%.2f%%)", bot_sym, pnl, pnl_pct)
-                    print(f"\n  🛑 STOP LOSS TRIGGERED: {side} {bot_sym} P&L: ${pnl:.2f} ({pnl_pct:.2f}%) — Executing Exit...")
-                    exit_trade = self._execute_exit(bot_sym, curr_price, f"Stop Loss ({pnl_pct:.2f}%)")
+                if scalp_eval.should_exit:
+                    exit_trade = self._execute_exit(bot_sym, curr_price, scalp_eval.reason)
                     if exit_trade:
-                        results["exits"].append(exit_trade)
+                        results.setdefault("exits", []).append(exit_trade)
+                        hold_time = (time.time() * 1000 - pos.entry_time) / 1000
+                        self.scalper.record_scalp(
+                            symbol=bot_sym,
+                            side=side,
+                            entry_price=entry_price,
+                            exit_price=curr_price,
+                            quantity=abs(qty),
+                            pnl=pnl,
+                            hold_time_seconds=hold_time,
+                            reason=scalp_eval.reason,
+                        )
 
             # Prune positions that have been closed on exchange
             for s in list(self.risk_manager.positions.keys()):

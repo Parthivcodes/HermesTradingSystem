@@ -14,6 +14,7 @@
   "poll_interval_seconds": 60,
   "paper_trading": true,
   "initial_capital": 100000.0,
+  "max_allocated_capital": 1000000.0,
   "exchange": {
     "name": "alpaca",
     "api_key": "PKOBB32V27HLE4HOQUA5FENK7M",
@@ -44,13 +45,27 @@
   "risk": {
     "max_risk_per_trade": 0.02,
     "max_portfolio_risk": 0.15,
-    "max_concurrent_positions": 8,
+    "max_concurrent_positions": 12,
     "daily_loss_limit": 0.05,
     "stop_loss_atr_multiplier": 1.5,
     "take_profit_atr_multiplier": 2.5,
     "trailing_stop_pct": 0.02,
-    "max_position_size_pct": 0.2,
+    "max_position_size_pct": 0.10,
     "cooldown_after_loss_seconds": 180
+  },
+  "scalper": {
+    "enabled": true,
+    "target_profit_dollars": 5.0,
+    "stop_loss_dollars": 4.0,
+    "breakeven_lock_dollars": 2.0,
+    "fast_poll_interval_seconds": 5
+  },
+  "whale_radar": {
+    "enabled": true,
+    "min_transaction_value": 50000.0,
+    "cache_duration_hours": 6,
+    "dynamic_universe_enabled": true,
+    "max_screened_symbols": 15
   },
   "log_dir": "trading_logs",
   "enable_telegram_alerts": false,

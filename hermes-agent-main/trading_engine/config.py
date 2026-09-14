@@ -93,6 +93,26 @@ class RiskConfig:
 
 
 @dataclass
+class ScalperConfig:
+    """Instant micro-profit scalping settings."""
+    enabled: bool = True
+    target_profit_dollars: float = 5.0        # Instant exit target ($2.0, $5.0, $10.0)
+    stop_loss_dollars: float = 4.0            # Paired micro-stop protection
+    breakeven_lock_dollars: float = 2.0       # Ratchet stop to breakeven once at +$2
+    fast_poll_interval_seconds: int = 5       # Sub-loop interval for position P&L checks
+
+
+@dataclass
+class WhaleRadarConfig:
+    """Congressional STOCK Act and institutional whale tracking settings."""
+    enabled: bool = True
+    min_transaction_value: float = 50000.0
+    cache_duration_hours: int = 6
+    dynamic_universe_enabled: bool = True
+    max_screened_symbols: int = 15
+
+
+@dataclass
 class TradingConfig:
     """Main trading configuration."""
     # Assets
@@ -100,15 +120,18 @@ class TradingConfig:
     timeframe: str = "5m"          # Candle interval for analysis
     lookback_candles: int = 100    # Number of candles to fetch for analysis
 
-    # Execution
-    poll_interval_seconds: int = 300  # Check every 5 minutes
+    # Execution & Capital Budget Ceiling
+    poll_interval_seconds: int = 60   # Main candle cycle interval
     paper_trading: bool = True        # ALWAYS start with paper trading
-    initial_capital: float = 10000.0  # Starting paper balance (USDT)
+    initial_capital: float = 100000.0 # Starting paper balance (USDT/USD)
+    max_allocated_capital: float = 1000000.0  # Strict capital budget ceiling (e.g. $1M)
 
     # Components
     exchange: ExchangeConfig = field(default_factory=ExchangeConfig)
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
+    scalper: ScalperConfig = field(default_factory=ScalperConfig)
+    whale_radar: WhaleRadarConfig = field(default_factory=WhaleRadarConfig)
 
     # Logging & Alerts
     log_dir: str = ""
@@ -136,7 +159,16 @@ class TradingConfig:
         exchange = ExchangeConfig(**data.pop("exchange", {}))
         strategy = StrategyConfig(**data.pop("strategy", {}))
         risk = RiskConfig(**data.pop("risk", {}))
-        return cls(exchange=exchange, strategy=strategy, risk=risk, **data)
+        scalper = ScalperConfig(**data.pop("scalper", {}))
+        whale_radar = WhaleRadarConfig(**data.pop("whale_radar", {}))
+        return cls(
+            exchange=exchange,
+            strategy=strategy,
+            risk=risk,
+            scalper=scalper,
+            whale_radar=whale_radar,
+            **data
+        )
 
     @classmethod
     def from_env(cls) -> "TradingConfig":

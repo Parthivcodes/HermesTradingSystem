@@ -38,6 +38,14 @@ const elActionFeedback = document.getElementById("actionFeedback");
 const elBtnRefresh = document.getElementById("btnManualRefresh");
 const elChartTooltip = document.getElementById("chartTooltip");
 
+// Scalper & Whale Radar Elements
+const elScalpCount = document.getElementById("scalpCount");
+const elScalpWinRate = document.getElementById("scalpWinRate");
+const elScalpProfit = document.getElementById("scalpProfit");
+const elScalpHoldTime = document.getElementById("scalpHoldTime");
+const elWhaleSignalsList = document.getElementById("whaleSignalsList");
+const elUniverseChipsBar = document.getElementById("universeChipsBar");
+
 // Format helpers
 function formatUSD(val, decimals = 2) {
   if (val === null || val === undefined || isNaN(val)) return "$0.00";
@@ -102,7 +110,11 @@ function renderStatus(data) {
   if (acc.portfolio_value) elPortfolioEquity.textContent = formatUSD(acc.portfolio_value);
   if (acc.cash) elCash.textContent = formatUSD(acc.cash);
   if (acc.buying_power) elBuyingPower.textContent = formatUSD(acc.buying_power);
-  if (bot.allocated_capital) elAllocatedCapital.textContent = formatUSD(bot.allocated_capital);
+  if (bot.max_allocated_capital) {
+    elAllocatedCapital.textContent = formatUSD(bot.max_allocated_capital);
+  } else if (bot.allocated_capital) {
+    elAllocatedCapital.textContent = formatUSD(bot.allocated_capital);
+  }
   if (acc.account_number) elAccountNumBadge.textContent = acc.account_number;
   if (acc.status) elAccountStatus.textContent = `Paper Account: ${acc.status.toUpperCase()}`;
 
@@ -149,8 +161,84 @@ function renderStatus(data) {
     elMacdBar.style.background = "#f43f5e";
   }
 
+  // Scalper Metrics & Whale Signals
+  renderScalper(data.scalper || {});
+  renderWhaleSignals(data.whale_signals || []);
+  renderUniverseChips(bot.symbols || []);
+
   // Positions Table
   renderPositions(data.positions || []);
+}
+
+function renderScalper(scalper) {
+  if (!scalper) return;
+  if (elScalpCount) elScalpCount.textContent = scalper.total_scalps || 0;
+  if (elScalpWinRate) elScalpWinRate.textContent = `${scalper.win_rate_pct || 100}%`;
+  if (elScalpProfit) {
+    const p = scalper.total_profit_harvested || 0;
+    elScalpProfit.textContent = (p >= 0 ? "+" : "") + formatUSD(p);
+  }
+  if (elScalpHoldTime) elScalpHoldTime.textContent = `${(scalper.avg_hold_time_seconds || 0).toFixed(1)}s`;
+}
+
+function renderWhaleSignals(signals) {
+  if (!elWhaleSignalsList) return;
+  if (!signals || !signals.length) {
+    elWhaleSignalsList.innerHTML = `<div class="empty-state">No political disclosures cached yet.</div>`;
+    return;
+  }
+  let html = "";
+  signals.forEach(s => {
+    const catalyst = s.catalysts && s.catalysts.length ? s.catalysts[0] : "Institutional Accumulation";
+    html += `
+      <div class="whale-item" data-sym="${s.symbol}" style="cursor: pointer;">
+        <div class="whale-item-left">
+          <span class="whale-sym">${s.symbol}</span>
+          <div>
+            <div class="whale-leader">${s.source || "Congress / Whale Consensus"}</div>
+            <div class="whale-cat">${catalyst}</div>
+          </div>
+        </div>
+        <div class="whale-score-badge">Score: ${(s.score || 0.8).toFixed(2)}</div>
+      </div>
+    `;
+  });
+  elWhaleSignalsList.innerHTML = html;
+
+  elWhaleSignalsList.querySelectorAll(".whale-item").forEach(item => {
+    item.addEventListener("click", () => {
+      const sym = item.dataset.sym;
+      if (sym) {
+        currentSymbol = sym;
+        const disp = document.getElementById("currentSymbolDisplay");
+        if (disp) disp.textContent = sym;
+        fetchCandles();
+      }
+    });
+  });
+}
+
+function renderUniverseChips(symbols) {
+  if (!elUniverseChipsBar || !symbols || !symbols.length) return;
+  let html = `<span class="amount-label" style="margin-right: 4px;">Dynamic Universe:</span>`;
+  symbols.forEach(sym => {
+    const activeClass = sym === currentSymbol ? "active" : "";
+    html += `<button class="universe-chip ${activeClass}" data-sym="${sym}">${sym}</button>`;
+  });
+  elUniverseChipsBar.innerHTML = html;
+
+  elUniverseChipsBar.querySelectorAll(".universe-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const sym = chip.dataset.sym;
+      if (sym) {
+        currentSymbol = sym;
+        const disp = document.getElementById("currentSymbolDisplay");
+        if (disp) disp.textContent = sym;
+        fetchCandles();
+        renderUniverseChips(symbols);
+      }
+    });
+  });
 }
 
 function renderPositions(positions) {
@@ -419,6 +507,16 @@ document.querySelectorAll(".timeframe-btn").forEach(btn => {
     e.target.classList.add("active");
     currentInterval = e.target.dataset.tf;
     fetchCandles();
+  });
+});
+
+// Scalper target profit buttons
+document.querySelectorAll(".target-btn").forEach(btn => {
+  btn.addEventListener("click", e => {
+    document.querySelectorAll(".target-btn").forEach(b => b.classList.remove("active"));
+    e.target.classList.add("active");
+    const targetVal = e.target.dataset.target;
+    console.log(`Scalper target set to +$${targetVal}.00`);
   });
 });
 

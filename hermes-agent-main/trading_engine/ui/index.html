@@ -80,11 +80,63 @@
 
       <div class="metric-card glow-emerald">
         <div class="metric-header">
-          <span class="metric-label">BOT SAMPLE CAPITAL</span>
+          <span class="metric-label">CAPITAL BUDGET CEILING</span>
           <span class="metric-icon">🛡️</span>
         </div>
-        <div class="metric-value" id="valAllocatedCapital">$5,000.00</div>
-        <div class="metric-sub">Risk Capped at 2% / Trade</div>
+        <div class="metric-value" id="valAllocatedCapital">$1,000,000.00</div>
+        <div class="metric-sub" id="valCapitalSub">Strict Exposure Ceiling Limit</div>
+      </div>
+    </section>
+
+    <!-- Intelligence & Scalping Grid -->
+    <section class="intelligence-grid">
+      <!-- Card 1: Micro-Scalper Engine -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <span class="panel-title">⚡ INSTANT MICRO-PROFIT SCALPER</span>
+          <span class="stream-badge" style="background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan);">SUB-LOOP 5s</span>
+        </div>
+        <p class="action-desc">Harvests immediate cash upon hitting target profit threshold ($2, $5, $10) with paired micro-stop protection:</p>
+        
+        <div class="scalper-targets-bar">
+          <span class="amount-label">Profit Target:</span>
+          <button class="target-btn" data-target="2">+$2.00</button>
+          <button class="target-btn active" data-target="5">+$5.00</button>
+          <button class="target-btn" data-target="10">+$10.00</button>
+          <button class="target-btn" data-target="25">+$25.00</button>
+        </div>
+
+        <div class="scalper-stats-row">
+          <div class="scalp-stat-box">
+            <div class="stat-lbl">Scalps Banked</div>
+            <div class="stat-val" id="scalpCount">0</div>
+          </div>
+          <div class="scalp-stat-box">
+            <div class="stat-lbl">Win Rate</div>
+            <div class="stat-val" style="color: var(--accent-emerald);" id="scalpWinRate">100%</div>
+          </div>
+          <div class="scalp-stat-box">
+            <div class="stat-lbl">Profit Harvested</div>
+            <div class="stat-val" style="color: var(--accent-cyan);" id="scalpProfit">+$0.00</div>
+          </div>
+          <div class="scalp-stat-box">
+            <div class="stat-lbl">Avg Hold Time</div>
+            <div class="stat-val" id="scalpHoldTime">0.0s</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Congressional & Whale Radar -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <span class="panel-title">🏛️ CONGRESSIONAL & WHALE RADAR</span>
+          <span class="stream-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">STOCK ACT & 13F</span>
+        </div>
+        <p class="action-desc">High-conviction market catalysts tracked from prominent political figures and institutional whales:</p>
+        
+        <div class="whale-list" id="whaleSignalsList">
+          <div class="empty-state">Loading political & whale signals...</div>
+        </div>
       </div>
     </section>
 
@@ -92,6 +144,12 @@
     <div class="main-grid">
       <!-- Left: Interactive Chart & Technical Indicators -->
       <section class="chart-section panel-card">
+        <!-- Dynamic Universe Selector Bar -->
+        <div class="universe-bar" id="universeChipsBar">
+          <span class="amount-label" style="margin-right: 4px;">Dynamic Universe:</span>
+          <!-- Dynamic stock chips injected via JS -->
+        </div>
+
         <div class="panel-header">
           <div class="symbol-info">
             <span class="symbol-title" id="currentSymbolDisplay">ETH / USD</span>

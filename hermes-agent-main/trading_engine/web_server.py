@@ -135,14 +135,17 @@ class TradingDashboardHandler(BaseHTTPRequestHandler):
             "positions": clean_positions,
             "bot": {
                 "active": True,
-                "symbols": self.config.symbols,
+                "symbols": bot_info.get("symbols", self.config.symbols),
                 "timeframe": self.config.timeframe,
                 "poll_interval": self.config.poll_interval_seconds,
                 "allocated_capital": self.config.initial_capital,
+                "max_allocated_capital": self.config.max_allocated_capital,
                 "last_cycle_utc": bot_info.get("last_cycle_utc"),
                 "cycle_count": bot_info.get("cycle_count", 0),
                 "signals": bot_info.get("signals", {}),
             },
+            "scalper": bot_info.get("scalper_summary", {}),
+            "whale_signals": bot_info.get("whale_signals", []),
             "risk": {
                 "max_risk_per_trade": self.config.risk.max_risk_per_trade,
                 "stop_loss_mult": self.config.risk.stop_loss_atr_multiplier,

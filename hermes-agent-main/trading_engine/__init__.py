@@ -12,6 +12,9 @@ from .risk_manager import RiskManager, Position, TradeValidation
 from .exchange_client import PaperTradingClient, OrderResult, Balance
 from .reporter import Reporter, PerformanceMetrics
 from .trading_bot import TradingBot, run_backtest
+from .whale_radar import WhaleRadar, WhaleSignal
+from .dynamic_screener import DynamicScreener, ScreenedAsset
+from .scalper_engine import ScalperEngine, ScalpEvaluation, ScalpRecord
 
 __all__ = [
     "TradingConfig", "ExchangeConfig", "StrategyConfig", "RiskConfig",
@@ -21,6 +24,9 @@ __all__ = [
     "PaperTradingClient", "OrderResult", "Balance",
     "Reporter", "PerformanceMetrics",
     "TradingBot", "run_backtest",
+    "WhaleRadar", "WhaleSignal",
+    "DynamicScreener", "ScreenedAsset",
+    "ScalperEngine", "ScalpEvaluation", "ScalpRecord",
 ]
 
 __version__ = "1.0.0"

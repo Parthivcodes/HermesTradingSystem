@@ -135,6 +135,7 @@ class RiskManager:
         trailing_stop_pct: float = 0.02,
         max_position_size_pct: float = 0.20,
         cooldown_after_loss: int = 300,
+        max_allocated_capital: float = 1000000.0,
     ):
         self.max_risk_per_trade = max_risk_per_trade
         self.max_portfolio_risk = max_portfolio_risk
@@ -145,6 +146,7 @@ class RiskManager:
         self.trailing_stop_pct = trailing_stop_pct
         self.max_position_size_pct = max_position_size_pct
         self.cooldown_after_loss = cooldown_after_loss
+        self.max_allocated_capital = max_allocated_capital
 
         # State
         self.positions: Dict[str, Position] = {}
@@ -239,6 +241,19 @@ class RiskManager:
         max_notional = portfolio_value * self.max_position_size_pct
         max_size_by_notional = max_notional / entry_price
         position_size = min(position_size, max_size_by_notional)
+
+        # ── Rule 7b: Strict Allocated Capital Budget Ceiling ──────
+        current_invested = sum(p.quantity * p.entry_price for p in self.positions.values())
+        capital_ceiling = min(portfolio_value, self.max_allocated_capital) if self.max_allocated_capital > 0 else portfolio_value
+        proposed_notional = position_size * entry_price
+        if current_invested + proposed_notional > capital_ceiling:
+            remaining_capital = capital_ceiling - current_invested
+            if remaining_capital < 10.0:
+                return TradeValidation(
+                    approved=False,
+                    rejection_reason=f"Capital ceiling (${capital_ceiling:,.2f}) fully utilized (Current exposure: ${current_invested:,.2f})"
+                )
+            position_size = min(position_size, remaining_capital / entry_price)
 
         # ── Rule 8: Total portfolio risk check ───────────────────
         existing_risk = sum(p.risk_amount for p in self.positions.values())

@@ -137,6 +137,14 @@ def main():
         "--no-ui", action="store_false", dest="ui",
         help="Disable the live Web Dashboard UI",
     )
+    parser.add_argument(
+        "--target-profit", type=float, default=None,
+        help="Target micro-scalp profit in dollars (e.g. 2.0, 5.0, 10.0)",
+    )
+    parser.add_argument(
+        "--max-capital", type=float, default=None,
+        help="Strict capital allocation ceiling (e.g. 1000000.0)",
+    )
     import os
     port_default = int(os.environ.get("PORT", 5000))
     parser.add_argument(
@@ -164,6 +172,11 @@ def main():
     config.timeframe = args.timeframe
     config.log_dir = args.log_dir
 
+    if args.target_profit is not None:
+        config.scalper.target_profit_dollars = args.target_profit
+    if args.max_capital is not None:
+        config.max_allocated_capital = args.max_capital
+
     if args.exchange:
         config.exchange.name = args.exchange.lower()
     if args.api_key:
@@ -190,7 +203,23 @@ def main():
                 print(f"   Total Cycles: {status.get('cycle_count')}")
                 print(f"   Exchange Mode: {status.get('exchange', 'alpaca').upper()}")
                 print(f"   Portfolio Equity: ${status.get('portfolio_value', 0.0):,.2f}")
-                print("   Latest Signals:")
+                print(f"   Capital Budget Ceiling: ${status.get('max_allocated_capital', 0.0):,.2f}")
+                print(f"   Active Dynamic Universe: {', '.join(status.get('symbols', []))}")
+
+                scalp_info = status.get("scalper_summary", {})
+                if scalp_info:
+                    print("\n⚡ Micro-Scalper Performance:")
+                    print(f"   Target Profit: +${scalp_info.get('target_profit_dollars', 5.0):.2f} | Stop: -${scalp_info.get('stop_loss_dollars', 4.0):.2f}")
+                    print(f"   Total Scalps: {scalp_info.get('total_scalps', 0)} (Win Rate: {scalp_info.get('win_rate_pct', 0.0)}%)")
+                    print(f"   Total Profit Banked: +${scalp_info.get('total_profit_harvested', 0.0):,.2f}")
+
+                whales = status.get("whale_signals", [])
+                if whales:
+                    print("\n🏛️ Top Political & Whale Signals:")
+                    for w in whales[:4]:
+                        print(f"   • {w.get('symbol')}: Score {w.get('score', 0):.2f} — {w.get('source')}")
+
+                print("\n   Latest Signals:")
                 for sym, sig in status.get("signals", {}).items():
                     print(f"     • {sym}: ${sig.get('price', 0):,.2f} | {sig.get('signal')} (Score: {sig.get('score', 0):+.2f})")
                 print()
