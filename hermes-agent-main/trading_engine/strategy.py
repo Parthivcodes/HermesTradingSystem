@@ -50,15 +50,15 @@ class StrategyResult:
 
     @property
     def is_actionable(self) -> bool:
-        """Whether the signal score meets the threshold for a trade."""
-        return abs(self.score) >= 0.15
+        """Whether the signal score meets the threshold for a trade (requires strong non-neutral conviction)."""
+        return abs(self.score) >= 0.30 and self.signal not in (Signal.NEUTRAL,)
 
     @property
     def direction(self) -> str:
         """LONG, SHORT, or FLAT."""
-        if self.score >= 0.15:
+        if self.score >= 0.30 and self.signal in (Signal.BUY, Signal.STRONG_BUY):
             return "LONG"
-        elif self.score <= -0.15:
+        elif self.score <= -0.30 and self.signal in (Signal.SELL, Signal.STRONG_SELL):
             return "SHORT"
         return "FLAT"
 
