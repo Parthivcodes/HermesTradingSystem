@@ -3,7 +3,9 @@ FastAPI Web Chat Server for Rule-Based Swing Trading Engine.
 Serves static cockpit UI and interactive command REST API.
 """
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Dict
 from fastapi import FastAPI, HTTPException
@@ -16,7 +18,34 @@ from .handlers import CommandHandler
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Swing Trading Signal Cockpit", version="1.0.0")
+handler = CommandHandler()
+static_dir = Path(__file__).parent / "static"
+
+
+async def auto_scan_background_worker():
+    """Continuously runs the scan loop in the background every 30 minutes."""
+    logger.info("Background auto-scanner started.")
+    # Initial scan shortly after boot
+    await asyncio.sleep(5)
+    while True:
+        try:
+            logger.info("Running automated background market scan...")
+            await asyncio.to_thread(handler.scheduler.run_daily_scan)
+        except Exception as e:
+            logger.error(f"Error in background auto-scanner: {e}")
+        # Wait 30 minutes before next automatic scan cycle
+        await asyncio.sleep(1800)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start background auto-scan task on server startup
+    scan_task = asyncio.create_task(auto_scan_background_worker())
+    yield
+    scan_task.cancel()
+
+
+app = FastAPI(title="Swing Trading Signal Cockpit", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,8 +55,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-handler = CommandHandler()
-static_dir = Path(__file__).parent / "static"
+
 
 
 class ChatRequest(BaseModel):
