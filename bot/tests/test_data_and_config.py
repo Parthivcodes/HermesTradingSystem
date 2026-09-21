@@ -22,7 +22,7 @@ def test_config_defaults_and_safety():
     assert config.risk.daily_loss_pct == 2.0
     assert config.risk.weekly_loss_pct == 5.0
     assert config.risk.max_drawdown_pct == 10.0
-    assert config.min_score == 70
+    assert config.min_score == 55
 
 
 def test_data_cache():

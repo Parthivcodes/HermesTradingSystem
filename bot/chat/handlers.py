@@ -73,7 +73,7 @@ class CommandHandler:
 
     def cmd_scan(self) -> str:
         scan_results = self.scheduler.run_daily_scan()
-        return self.formatter.format_scan(scan_results)
+        return self.formatter.format_scan(scan_results, min_score=self.scheduler.config.min_score)
 
     def cmd_signal(self, ticker: str) -> str:
         sig = self.scheduler.analyze_symbol(ticker)
@@ -127,7 +127,7 @@ class CommandHandler:
 
     def cmd_why_not(self, ticker: str) -> str:
         sig = self.scheduler.analyze_symbol(ticker)
-        return self.formatter.format_why_not(sig)
+        return self.formatter.format_why_not(sig, min_score=self.scheduler.config.min_score)
 
     def cmd_help(self) -> str:
         return (

@@ -37,10 +37,12 @@ class RegimeAnalyzer:
         self,
         spy_df: pd.DataFrame,
         vix_df: Optional[pd.DataFrame] = None,
+        is_inverse: bool = False,
     ) -> RegimeResult:
         """
         Evaluate stock regime filter:
-        SPY close > SMA200 AND SMA50 > SMA200 AND VIX < 25
+        Standard: SPY close > SMA200 AND SMA50 > SMA200 AND VIX < 25
+        Inverse ETFs (Downfall Mode): SPY close < SMA200 OR SMA50 < SMA200 OR VIX >= 20
         """
         reasons = []
         rejections = []
@@ -59,10 +61,40 @@ class RegimeAnalyzer:
         sma200 = calc_sma(close, 200).iloc[-1]
         current_close = close.iloc[-1]
 
+        vix_val = 18.0
+        if vix_df is not None and not vix_df.empty:
+            vix_val = float(vix_df["close"].iloc[-1])
+
         metrics["spy_close"] = float(current_close)
         metrics["spy_sma50"] = float(sma50)
         metrics["spy_sma200"] = float(sma200)
+        metrics["vix"] = vix_val
 
+        if is_inverse:
+            # Downfall regime enables Inverse ETFs
+            is_downfall = (current_close < sma200) or (sma50 < sma200) or (vix_val >= 20.0)
+            if is_downfall:
+                reasons.append(f"Downfall regime active: SPY ({current_close:.2f}) or VIX ({vix_val:.2f}) favors inverse hedging")
+                return RegimeResult(
+                    allowed=True,
+                    score=20,
+                    market_type="stock",
+                    metrics=metrics,
+                    reasons=reasons,
+                    rejections=[],
+                )
+            else:
+                rejections.append("Equities in strong bull regime (SPY > SMA200 & VIX low): Inverse ETF longs restricted")
+                return RegimeResult(
+                    allowed=False,
+                    score=0,
+                    market_type="stock",
+                    metrics=metrics,
+                    reasons=[],
+                    rejections=rejections,
+                )
+
+        # Standard Long Regime:
         # Condition 1: SPY close > SMA200
         if current_close > sma200:
             reasons.append(f"SPY close ({current_close:.2f}) > SMA200 ({sma200:.2f})")
@@ -76,11 +108,6 @@ class RegimeAnalyzer:
             rejections.append(f"SPY SMA50 ({sma50:.2f}) <= SMA200 ({sma200:.2f})")
 
         # Condition 3: VIX < 25
-        vix_val = 18.0  # default safe fallback if VIX data not connected
-        if vix_df is not None and not vix_df.empty:
-            vix_val = float(vix_df["close"].iloc[-1])
-        metrics["vix"] = vix_val
-
         if vix_val < self.vix_threshold:
             reasons.append(f"VIX ({vix_val:.2f}) < {self.vix_threshold}")
         else:

@@ -20,17 +20,17 @@ class ChatFormatter:
         return sig.to_formatted_message()
 
     @staticmethod
-    def format_scan(results: Dict[str, List[ScoredSignal]]) -> str:
+    def format_scan(results: Dict[str, List[ScoredSignal]], min_score: int = 55) -> str:
         approved = results.get("approved", [])
         rejected = results.get("rejected", [])
 
         lines = [f"=== SWING SCAN REPORT ({len(approved)} Approved / {len(rejected)} Filtered) ==="]
 
         if not approved:
-            lines.append("No active trade setups meeting all filters & Score >= 70.")
+            lines.append(f"No active trade setups meeting all filters & Score >= {min_score}.")
             lines.append("Review filtered symbols with '/why_not <TICKER>' for diagnostic details.")
         else:
-            lines.append("\n--- APPROVED HIGH-CONVICTION SETUPS (Score >= 70) ---")
+            lines.append(f"\n--- APPROVED HIGH-CONVICTION SETUPS (Score >= {min_score}) ---")
             for sig in approved:
                 lines.append(sig.to_formatted_message())
                 lines.append("-" * 40)
@@ -129,10 +129,10 @@ class ChatFormatter:
         return "\n".join(lines)
 
     @staticmethod
-    def format_why_not(sig: ScoredSignal) -> str:
+    def format_why_not(sig: ScoredSignal, min_score: int = 55) -> str:
         lines = [
             f"=== DIAGNOSTIC AUDIT: WHY WAS {sig.symbol} NOT TRADED? ===",
-            f"Overall Score: {sig.score}/100 (Threshold: 70)",
+            f"Overall Score: {sig.score}/100 (Threshold: {min_score})",
             "",
             "Score Breakdown:",
             f"  • Regime: {sig.score_breakdown.get('regime', 0)}/20",

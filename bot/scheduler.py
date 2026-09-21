@@ -24,6 +24,8 @@ from bot.execution.paper_broker import PaperBroker
 
 logger = logging.getLogger(__name__)
 
+INVERSE_ETFS = {"SH", "PSQ", "SQQQ", "SPDN", "DOG", "SOXS", "SDOW"}
+
 
 class TradingScheduler:
     """Orchestrates daily scanning, position management, and risk enforcement."""
@@ -106,6 +108,7 @@ class TradingScheduler:
     ) -> ScoredSignal:
         """Run complete analysis pipeline on a single ticker."""
         is_crypto = "/" in symbol or "USDT" in symbol
+        is_inverse = symbol.upper() in INVERSE_ETFS
         df = self.crypto_fetcher.fetch_daily(symbol) if is_crypto else self.stock_fetcher.fetch_daily(symbol)
 
         # Benchmark data for relative strength
@@ -113,7 +116,11 @@ class TradingScheduler:
         bench_df = self.crypto_fetcher.fetch_daily(bench_symbol) if is_crypto else self.stock_fetcher.fetch_daily(bench_symbol)
 
         # Regime evaluation
-        if regime_override is not None:
+        if is_inverse:
+            spy_df = self.stock_fetcher.fetch_daily(self.config.regime.spy_symbol)
+            vix_df = self.stock_fetcher.fetch_daily(self.config.regime.vix_symbol)
+            regime = self.regime_analyzer.evaluate_stock_regime(spy_df, vix_df, is_inverse=True)
+        elif regime_override is not None:
             regime = regime_override
         else:
             if is_crypto:

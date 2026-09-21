@@ -13,12 +13,12 @@ regime:
   eth_symbol: "ETH/USDT"
 
 entry:
-  adx_min: 20.0
-  rsi_pullback: [40.0, 50.0]
-  vol_confirm: 1.2         # Pullback confirmation volume ratio vs 20-day average
-  breakout_vol: 1.5        # Breakout volume ratio vs 20-day average
+  adx_min: 14.0            # Lowered from 20.0 to capture early emerging trends
+  rsi_pullback: [38.0, 52.0]
+  vol_confirm: 1.0         # Lowered from 1.2 to allow standard volume confirmation
+  breakout_vol: 1.3        # Lowered from 1.5 for realistic swing breakouts
   consolidation_lookback: 60
-  consolidation_percentile: 25.0
+  consolidation_percentile: 30.0
 
 stop:
   atr_mult_stock: 2.0
@@ -53,12 +53,12 @@ no_trade_filters:
   earnings_buffer_days: 5
   event_window_hours: 24   # FOMC, CPI, Jobs report window
   min_stock_price: 5.0
-  min_stock_dollar_vol: 10000000.0
-  min_crypto_24h_vol: 50000000.0
-  max_crypto_spread_pct: 0.3
-  extended_atr_mult: 2.5
-  extended_rsi_max: 75.0
-  extended_consecutive_green: 3
+  min_stock_dollar_vol: 5000000.0
+  min_crypto_24h_vol: 20000000.0
+  max_crypto_spread_pct: 0.5
+  extended_atr_mult: 3.0
+  extended_rsi_max: 80.0
+  extended_consecutive_green: 4
   token_unlock_buffer_days: 7
 
 backtest:
@@ -68,10 +68,11 @@ backtest:
   crypto_slippage_pct: 0.1
   default_years: 5
 
-min_score: 70
+min_score: 55              # Lowered from 70 to 55 to execute high-probability continuous trades
 
 watchlists:
   stocks:
+    # Core Indexes & Leaders
     - "SPY"
     - "QQQ"
     - "AAPL"
@@ -82,6 +83,19 @@ watchlists:
     - "META"
     - "TSLA"
     - "AMD"
+    # High-Beta Momentum Leaders
+    - "PLTR"
+    - "COIN"
+    - "MSTR"
+    - "ARM"
+    - "SMCI"
+    - "SMH"
+    - "SHOP"
+    - "CRWD"
+    # Inverse ETFs for Market Downfalls (trade long when market drops)
+    - "SH"     # ProShares Short S&P500
+    - "PSQ"    # ProShares Short QQQ
+    - "SQQQ"   # ProShares UltraPro Short QQQ
   crypto:
     - "BTC/USDT"
     - "ETH/USDT"
@@ -89,6 +103,10 @@ watchlists:
     - "BNB/USDT"
     - "AVAX/USDT"
     - "LINK/USDT"
+    - "SUI/USDT"
+    - "NEAR/USDT"
+    - "DOGE/USDT"
+    - "XRP/USDT"
 
 chat:
   host: "127.0.0.1"
