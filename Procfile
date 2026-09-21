@@ -1,1 +1,1 @@
-web: python run_engine.py --capital 100000 --interval 60
+web: python run_bot.py ui

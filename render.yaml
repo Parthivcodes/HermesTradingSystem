@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: hermes-trading-engine
+    name: apex-swing-trading-bot
     env: python
-    buildCommand: ""
-    startCommand: python run_engine.py --capital 100000 --interval 60
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python run_bot.py ui"
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0

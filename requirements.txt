@@ -1,1 +1,9 @@
-# Hermes Trading Engine uses Python 3.12 standard library.
+pandas==2.2.3
+numpy>=1.26.0
+pyyaml>=6.0
+pydantic>=2.0
+fastapi>=0.110.0
+uvicorn>=0.28.0
+yfinance>=0.2.36
+ccxt>=4.2.0
+pytest>=8.0.0

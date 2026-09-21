@@ -2,3 +2,8 @@ __pycache__/
 *.pyc
 trading_logs/
 .env
+data_cache/
+state/
+logs/
+.pytest_cache/
+

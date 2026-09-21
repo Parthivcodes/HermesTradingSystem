@@ -1,0 +1,101 @@
+# Rule-Based Swing Trading Signal Bot Configuration
+timeframe: "1D"
+mode: "paper"              # Options: paper | signal_only | live
+live_trading: false        # SAFETY: Hard requirement. Must be true for any real order execution.
+
+regime:
+  stocks: "SPY>SMA200 & SMA50>SMA200 & VIX<25"
+  crypto: "BTC>EMA200 & BTC_24h>-8%"
+  vix_threshold: 25.0
+  spy_symbol: "SPY"
+  vix_symbol: "^VIX"
+  btc_symbol: "BTC/USDT"
+  eth_symbol: "ETH/USDT"
+
+entry:
+  adx_min: 20.0
+  rsi_pullback: [40.0, 50.0]
+  vol_confirm: 1.2         # Pullback confirmation volume ratio vs 20-day average
+  breakout_vol: 1.5        # Breakout volume ratio vs 20-day average
+  consolidation_lookback: 60
+  consolidation_percentile: 25.0
+
+stop:
+  atr_mult_stock: 2.0
+  atr_mult_crypto: 2.75
+  min_atr_mult: 1.5
+  max_dist_pct:
+    stock: 8.0
+    crypto: 12.0
+  time_stop_candles: 10
+
+targets:
+  t1_R: 1.5
+  t1_size: 0.33
+  t2_R: 3.0
+  t2_size: 0.33
+  runner_size: 0.34
+  trail_atr: 3.0
+
+risk:
+  per_trade_pct: 0.75      # Risk 0.75% of equity per trade
+  max_equity_per_stock_pct: 15.0
+  max_equity_per_crypto_pct: 10.0
+  max_open_risk_pct: 5.0   # Total portfolio open risk cap
+  daily_loss_pct: 2.0      # Kill switch: daily loss <= -2% halts for the day
+  weekly_loss_pct: 5.0     # Kill switch: weekly loss <= -5% halts requiring resume
+  consecutive_losses_threshold: 3
+  consecutive_losses_size_mult: 0.5
+  max_drawdown_pct: 10.0   # Kill switch: 10% DD halts bot requiring manual re-enable
+  initial_equity: 100000.0
+
+no_trade_filters:
+  earnings_buffer_days: 5
+  event_window_hours: 24   # FOMC, CPI, Jobs report window
+  min_stock_price: 5.0
+  min_stock_dollar_vol: 10000000.0
+  min_crypto_24h_vol: 50000000.0
+  max_crypto_spread_pct: 0.3
+  extended_atr_mult: 2.5
+  extended_rsi_max: 75.0
+  extended_consecutive_green: 3
+  token_unlock_buffer_days: 7
+
+backtest:
+  stock_commission_per_share: 0.005
+  stock_slippage_pct: 0.05
+  crypto_taker_fee_pct: 0.1
+  crypto_slippage_pct: 0.1
+  default_years: 5
+
+min_score: 70
+
+watchlists:
+  stocks:
+    - "SPY"
+    - "QQQ"
+    - "AAPL"
+    - "MSFT"
+    - "NVDA"
+    - "AMZN"
+    - "GOOGL"
+    - "META"
+    - "TSLA"
+    - "AMD"
+  crypto:
+    - "BTC/USDT"
+    - "ETH/USDT"
+    - "SOL/USDT"
+    - "BNB/USDT"
+    - "AVAX/USDT"
+    - "LINK/USDT"
+
+chat:
+  host: "127.0.0.1"
+  port: 8000
+  enable_telegram: false
+
+storage:
+  data_cache_dir: "data_cache"
+  state_dir: "state"
+  logs_dir: "logs"

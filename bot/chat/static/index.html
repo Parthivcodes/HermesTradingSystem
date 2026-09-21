@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apex Swing Trading Signal Engine | Institutional Cockpit</title>
+  <meta name="description" content="Institutional Rule-Based Swing Trading Signal Engine and Paper Trading Cockpit for US Equities and Crypto.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header / Status Bar -->
+    <header class="top-nav">
+      <div class="brand">
+        <div class="pulse-indicator"></div>
+        <div class="brand-text">
+          <span class="brand-title">APEX SWING SIGNAL BOT</span>
+          <span class="brand-subtitle">US Equities & Crypto • Daily Swing Engine</span>
+        </div>
+      </div>
+
+      <div class="system-pills">
+        <div class="pill pill-mode" id="modePill">
+          <span class="pill-dot"></span>
+          <span class="pill-label">MODE:</span>
+          <span class="pill-value" id="modeValue">PAPER</span>
+        </div>
+        <div class="pill pill-safety" id="safetyPill">
+          <span class="pill-label">LIVE TRADING:</span>
+          <span class="pill-value" id="safetyValue">DISABLED</span>
+        </div>
+        <div class="pill pill-equity" id="equityPill">
+          <span class="pill-label">EQUITY:</span>
+          <span class="pill-value" id="equityValue">$100,000.00</span>
+        </div>
+        <div class="pill pill-positions" id="positionsPill">
+          <span class="pill-label">POSITIONS:</span>
+          <span class="pill-value" id="positionsValue">0 Active</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="main-container">
+      <!-- Chat Interface -->
+      <section class="chat-section">
+        <div class="chat-header">
+          <div class="chat-title-group">
+            <h2>Command Console</h2>
+            <span class="chat-status" id="connectionStatus">● Engine Ready</span>
+          </div>
+          <div class="quick-commands">
+            <button class="cmd-btn" id="btnCmdScan" data-cmd="/scan">/scan</button>
+            <button class="cmd-btn" id="btnCmdRegime" data-cmd="/regime">/regime</button>
+            <button class="cmd-btn" id="btnCmdPositions" data-cmd="/positions">/positions</button>
+            <button class="cmd-btn" id="btnCmdRisk" data-cmd="/risk">/risk</button>
+            <button class="cmd-btn" id="btnCmdSignal" data-cmd="/signal AAPL">/signal AAPL</button>
+            <button class="cmd-btn" id="btnCmdWhyNot" data-cmd="/why_not SPY">/why_not SPY</button>
+            <button class="cmd-btn" id="btnCmdBacktest" data-cmd="/backtest SPY 5">/backtest SPY 5</button>
+          </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+          <div class="message-bubble system-msg">
+            <div class="msg-header">
+              <span class="msg-author">APEX SYSTEM</span>
+              <span class="msg-time">Online</span>
+            </div>
+            <div class="msg-body">
+              <strong>Rule-Based Swing Trading Engine Initialized.</strong><br>
+              • Trend-Following Pullback & Breakout Swings (Daily timeframe)<br>
+              • Strict 0-100 Composite Scoring (Min score >= 70)<br>
+              • Persistent Multi-tier Risk & Killswitch Protection (-2% Day, -5% Week, 10% DD Halt)<br>
+              • Use the quick command buttons above or type commands below to interact.
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Bar -->
+        <form class="chat-input-bar" id="chatForm">
+          <input 
+            type="text" 
+            id="chatInput" 
+            placeholder="Type a command (/scan, /signal AAPL, /why_not TSLA, /regime, /risk)..." 
+            autocomplete="off" 
+            required
+          />
+          <button type="submit" id="sendBtn" class="send-button">
+            <span>Execute</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </form>
+      </section>
+
+      <!-- Strategy Info Sidebar -->
+      <aside class="sidebar-section">
+        <div class="card card-rules">
+          <h3>Strategy Rules Overview</h3>
+          <ul class="rule-list">
+            <li>
+              <strong>1. Market Regime:</strong>
+              <span>Stocks: SPY > SMA200 & SMA50 > SMA200 & VIX < 25<br>Crypto: BTC > EMA200 & 24h > -8%</span>
+            </li>
+            <li>
+              <strong>2. Asset Filter:</strong>
+              <span>Close > EMA50 > EMA200 • ADX(14) > 20 • 3M Return > Benchmark</span>
+            </li>
+            <li>
+              <strong>3. Entry Triggers:</strong>
+              <span>A) Pullback to EMA20-50 + RSI 40-50 turning up + Vol >= 1.2x<br>B) 20d High Breakout + Vol >= 1.5x + 60d Contraction</span>
+            </li>
+            <li>
+              <strong>4. Stop & Targets:</strong>
+              <span>Stop: 2.0x ATR (stocks), 2.75x ATR (crypto), max 8%/12%<br>T1 (1.5R): Sell 33%, stop to BE<br>T2 (3.0R): Sell 33%<br>Runner: 3x ATR Chandelier or close < EMA20</span>
+            </li>
+            <li>
+              <strong>5. Risk Engine:</strong>
+              <span>0.75% equity risk • Max 15% stock / 10% crypto cap • 5% max portfolio open risk</span>
+            </li>
+            <li>
+              <strong>6. Kill Switches:</strong>
+              <span>-2% Day (Halt) • -5% Week (Pause) • 3 Losses (Halve size) • 10% Peak DD (Hard stop)</span>
+            </li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
