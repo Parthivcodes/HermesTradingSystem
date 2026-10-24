@@ -8,10 +8,32 @@ import subprocess
 import sys
 import threading
 import time
+import hashlib
+import hmac
+import secrets
+from http.cookies import SimpleCookie, CookieError
+from dashboard import snapshot
 
 ROOT=Path(__file__).resolve().parent
 stop=threading.Event()
 child=None
+
+
+def session_token(expiry):
+    key=os.environ.get('DAYTRADER_DASHBOARD_PASSWORD','').encode()
+    return str(expiry)+'.'+hmac.new(key,str(expiry).encode(),hashlib.sha256).hexdigest()
+
+
+def authenticated(cookie):
+    if not os.environ.get('DAYTRADER_DASHBOARD_PASSWORD'):
+        return False
+    try:
+        cookies=SimpleCookie(cookie or '')
+        token=cookies['daytrader_session'].value
+        expiry=int(token.split('.')[0])
+        return time.time()<expiry<=time.time()+43260 and hmac.compare_digest(token,session_token(expiry))
+    except (KeyError,ValueError,CookieError):
+        return False
 
 
 def supervise():
@@ -34,14 +56,60 @@ def supervise():
 
 
 class Handler(BaseHTTPRequestHandler):
+    def respond(self,code,body,kind='application/json',cookie=None):
+        if not isinstance(body,bytes):body=json.dumps(body).encode()
+        self.send_response(code)
+        self.send_header('Content-Type',kind)
+        self.send_header('Cache-Control','no-store')
+        self.send_header('X-Content-Type-Options','nosniff')
+        self.send_header('Referrer-Policy','no-referrer')
+        self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'")
+        if cookie:self.send_header('Set-Cookie',cookie)
+        self.send_header('Content-Length',str(len(body)))
+        self.end_headers();self.wfile.write(body)
+
+    def do_POST(self):
+        if self.path not in ('/login','/logout'):
+            self.respond(404,{});return
+        # JSON custom header prevents cross-site form login/logout.
+        if self.headers.get('X-Daytrader')!='dashboard':
+            self.respond(403,{});return
+        if self.path=='/logout':
+            self.respond(200,{},cookie='daytrader_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0');return
+        try:length=int(self.headers.get('Content-Length','0'))
+        except ValueError:
+            self.respond(400,{});return
+        if not 0<length<=1024:
+            self.respond(400,{});return
+        try:password=json.loads(self.rfile.read(length)).get('password','')
+        except (ValueError,AttributeError):password=''
+        expected=os.environ.get('DAYTRADER_DASHBOARD_PASSWORD','')
+        if not expected or not isinstance(password,str) or not secrets.compare_digest(password,expected):
+            time.sleep(1)
+            self.respond(401,{'error':'Incorrect access code'});return
+        token=session_token(int(time.time()+43200))
+        self.respond(200,{},cookie='daytrader_session='+token+'; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=43200')
+
     def do_GET(self):
+        if self.path=='/':
+            self.respond(200,(ROOT/'dashboard.html').read_bytes(),'text/html; charset=utf-8');return
+        if self.path=='/api/state':
+            if not authenticated(self.headers.get('Cookie')):
+                self.respond(401,{'error':'Sign in to view paper trades'});return
+            try:
+                data=snapshot(os.environ.get('TRADER_STATE_DIR','/tmp/paper-trader'))
+                data['entries_enabled']=os.environ.get('PAPER_ENTRIES_ENABLED')=='true'
+                self.respond(200,data)
+            except Exception:
+                self.respond(503,{'error':'Broker update unavailable. Displayed data may be stale.'})
+            return
         running=child is not None and child.poll() is None
-        payload=dict(service='Alpaca paper trader',hosting='Render Free',
+        payload=dict(service='Daytrader',hosting='Render Free',
             runner_process='running' if running else 'not running',
             entries_enabled=os.environ.get('PAPER_ENTRIES_ENABLED')=='true',
             capital_limit=5000,planned_risk_limit=100,
             limitation='Render Free sleeps after inactivity; timed exits are not guaranteed.')
-        if self.path not in ('/','/healthz'):
+        if self.path!='/healthz':
             self.send_error(404);return
         body=json.dumps(payload).encode()
         self.send_response(200)
