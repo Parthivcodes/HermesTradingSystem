@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "paper": true,
+  "authorization": "User requested independent automation and answered: Also choose and enter new trades. Existing limits: $5,000 paper capital and $100 maximum planned risk per trade.",
+  "recorded_date": "2026-10-24",
+  "description": "One paper opening-range breakout per US session; AAPL, MSFT, NVDA, AMZN, GOOGL, META, SPY. Code enforces risk and capital caps."
+}

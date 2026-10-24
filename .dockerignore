@@ -1,0 +1,6 @@
+*
+!Dockerfile
+!paperbot/
+!paperbot/**
+paperbot/**/__pycache__/
+paperbot/.test-temp/

@@ -1,0 +1,16 @@
+{
+  "paper": true,
+  "mode": "monitor_only",
+  "symbol": "MSFT",
+  "qty": 7,
+  "entry": "522.22",
+  "stop": "519.00",
+  "target": "528.66",
+  "client_order_id": "paper-msft-20261023-pullback-draft",
+  "exit_client_order_id": "paper-msft-20261023-deadline-exit",
+  "entry_after": "2026-10-23T18:23:00+00:00",
+  "cancel_at": "2026-10-23T19:30:00+00:00",
+  "flatten_at": "2026-10-23T19:54:00+00:00",
+  "deadline": "2026-10-23T19:55:00+00:00",
+  "authorization": "Historical approved MSFT bracket: reconcile only. Never submit another entry for this plan."
+}
